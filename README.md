@@ -1,4 +1,4 @@
-# foundnet: Foundational Network for multi-modal Pretraining Toolkit
+# foundnet: Foundational Network for Pretraining Toolkit
 
 # foundnet design principles
 This repository follows the main principle of openness through clarity.

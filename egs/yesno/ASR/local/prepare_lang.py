@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Tuple
 import k2
 import torch
 
-from icefall.lexicon import read_lexicon, write_lexicon
+from foundnet.lexicon import read_lexicon, write_lexicon
 
 Lexicon = List[Tuple[str, List[str]]]
 

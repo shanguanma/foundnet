@@ -19,6 +19,7 @@ import argparse
 import logging
 from pathlib import Path
 from typing import List, Tuple
+import logging
 
 import torch
 import torch.nn as nn
@@ -29,11 +30,10 @@ from transducer.encoder import Tdnn
 from transducer.joiner import Joiner
 from transducer.model import Transducer
 
-from icefall.checkpoint import average_checkpoints, load_checkpoint
-from icefall.env import get_env_info
-from icefall.utils import (
+from foundnet.checkpoint import average_checkpoints, load_checkpoint
+from foundnet.env import get_env_info
+from foundnet.utils import (
     AttributeDict,
-    setup_logger,
     store_transcripts,
     write_error_stats,
 )
@@ -262,7 +262,7 @@ def main():
     params.update(vars(args))
     params["env_info"] = get_env_info()
 
-    setup_logger(f"{params.exp_dir}/log/log-decode")
+
     logging.info("Decoding started")
     logging.info(params)
 
@@ -305,4 +305,6 @@ def main():
 
 
 if __name__ == "__main__":
+    formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
+    logging.basicConfig(format=formatter, level=logging.INFO) 
     main()

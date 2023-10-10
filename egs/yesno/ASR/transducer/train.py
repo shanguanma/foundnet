@@ -37,11 +37,11 @@ from transducer.encoder import Tdnn
 from transducer.joiner import Joiner
 from transducer.model import Transducer
 
-from icefall.checkpoint import load_checkpoint
-from icefall.checkpoint import save_checkpoint as save_checkpoint_impl
-from icefall.dist import cleanup_dist, setup_dist
-from icefall.env import get_env_info
-from icefall.utils import AttributeDict, MetricsTracker, setup_logger, str2bool
+from foundnet.checkpoint import load_checkpoint
+from foundnet.checkpoint import save_checkpoint as save_checkpoint_impl
+from foundnet.dist import cleanup_dist, setup_dist
+from foundnet.env import get_env_info
+from foundnet.utils import AttributeDict, MetricsTracker, str2bool
 
 
 def get_labels(texts: List[str]) -> k2.RaggedTensor:
@@ -496,7 +496,7 @@ def run(rank, world_size, args):
     if world_size > 1:
         setup_dist(rank, world_size, params.master_port)
 
-    setup_logger(f"{params.exp_dir}/log/log-train")
+    #setup_logger(f"{params.exp_dir}/log/log-train")
     logging.info("Training started")
     logging.info(params)
 
@@ -578,10 +578,20 @@ def main():
     world_size = args.world_size
     assert world_size >= 1
     if world_size > 1:
+        ## logger setting
+        world_size = dist.get_world_size()
+        rank = dist.get_rank()
+        formatter = f"%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] ({rank}/{world_size}) %(message)s"
+        logging.basicConfig(format=formatter, level=logging.INFO)
         mp.spawn(run, args=(world_size, args), nprocs=world_size, join=True)
     else:
+        ## logger setting
+        formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
+        logging.basicConfig(format=formatter, level=logging.INFO)
+
         run(rank=0, world_size=1, args=args)
 
 
 if __name__ == "__main__":
+    
     main()

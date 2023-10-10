@@ -31,8 +31,8 @@ from lhotse.dataset import (
 from lhotse.dataset.input_strategies import OnTheFlyFeatures
 from torch.utils.data import DataLoader
 
-from icefall.dataset.datamodule import DataModule
-from icefall.utils import str2bool
+from foundnet.dataset.datamodule import DataModule
+from foundnet.utils import str2bool
 
 
 class YesNoAsrDataModule(DataModule):

@@ -24,7 +24,7 @@ import torch.nn as nn
 import torchaudio
 import torchaudio.functional
 
-from icefall.utils import add_sos
+from foundnet.utils import add_sos
 
 assert hasattr(torchaudio.functional, "rnnt_loss"), (
     f"Current torchaudio version: {torchaudio.__version__}\n"

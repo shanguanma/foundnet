@@ -15,7 +15,7 @@ import torch
 from lhotse import CutSet, Fbank, FbankConfig, LilcomChunkyWriter
 from lhotse.recipes.utils import read_manifests_if_cached
 
-from icefall.utils import get_executor
+from foundnet.utils import get_executor
 
 # Torch's multithreaded behavior needs to be disabled or it wastes a
 # lot of CPU and slow things down.

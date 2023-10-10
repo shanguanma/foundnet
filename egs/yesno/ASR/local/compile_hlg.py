@@ -19,7 +19,7 @@ from pathlib import Path
 import k2
 import torch
 
-from icefall.lexicon import Lexicon
+from foundnet.lexicon import Lexicon
 
 
 def get_args():

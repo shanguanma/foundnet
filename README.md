@@ -17,6 +17,24 @@ foundnet is:
 ```
 conda create -n foundnet python=3.11 -y
 conda activate foundnet
-conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.7 -c pytorch -c nvidia
-pip install -r requirements.txt
 ```
+- Install pytorch with cuda11.7
+`conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.7 -c pytorch -c nvidia`
+or
+`conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8 -c pytorch -c nvidia`
+- Install k2 with cuda11.7
+```
+wget https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20230927+cuda11.7.torch2.0.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+pip install ./k2-1.24.4.dev20230927+cuda11.7.torch2.0.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+```
+- or Install k2 with cuda11.8
+```
+wget https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20230927+cuda11.8.torch2.0.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+pip install ./k2-1.24.4.dev20230927+cuda11.8.torch2.0.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+``` 
+> [!NOTE]
+> if you want to install other k2 version: you can visit:https://k2-fsa.github.io/k2/cuda.html 
+
+- Finally, you  need to install other packages
+`pip install -r requirements.txt`
+

@@ -1,0 +1,8 @@
+kaldifst
+kaldilm
+kaldialign
+black==22.3.0
+sentencepiece>=0.1.96
+git+https://github.com/lhotse-speech/lhotse
+tensorboard
+typeguard

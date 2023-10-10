@@ -1,7 +1,6 @@
-icefall.egg-info/
+
 data
 __pycache__
-path.sh
 exp
 exp*/
 *.pt
@@ -23,7 +22,7 @@ node_modules
 .nfs*
 
 # Ignore all text files
-*.txt
+#*.txt
 
 # Ignore files related to API keys
 .env

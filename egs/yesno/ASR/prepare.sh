@@ -13,7 +13,7 @@ dl_dir=$PWD/download
 lang_dir=data/lang_phone
 lm_dir=data/lm
 
-. shared/parse_options.sh || exit 1
+. utils/parse_options.sh || exit 1
 
 mkdir -p $lang_dir
 mkdir -p $lm_dir

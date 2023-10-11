@@ -40,5 +40,8 @@ pip install ./k2-1.24.4.dev20230927+cuda11.8.torch2.0.1-cp311-cp311-manylinux_2_
 > if you want to install other k2 version: you can visit:https://k2-fsa.github.io/k2/cuda.html 
 
 - Finally, you  need to install other packages
-`pip install -r requirements.txt`
+```
+pip install -r requirements.txt
+
+```
 

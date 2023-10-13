@@ -285,10 +285,8 @@ def apply_padding_mask(seqs: Tensor, padding_mask: Optional[Tensor]) -> Tensor:
         the batch size, :math:`S` is the sequence length, and :math:`*` is any
         number of sequence-specific dimensions including none.
     :param padding_mask:
-        The float padding mask to apply. *Shape:* :math:`(N_{msk},S)`, where
-        :math:`N_{msk}` is the mask batch size and :math:`S` is the sequence
-        length. :math:`N` can be a multiple of :math:`N_{msk}` in which case the
-        mask will be tiled before being applied.
+        The float padding mask to apply. *Shape:* :math:`(N,S)`, where :math:`N`
+        is the batch size and :math:`S` is the sequence length.
 
     :returns:
         The input sequences with mask applied. *Shape:* Same as ``seqs``.
@@ -298,16 +296,10 @@ def apply_padding_mask(seqs: Tensor, padding_mask: Optional[Tensor]) -> Tensor:
 
     bool_mask = padding_mask.isinf()
 
-    seq_batch_size, mask_batch_size = seqs.size(0), padding_mask.size(0)
+    if seqs.ndim > 2:
+        bool_mask = bool_mask.unsqueeze(2)
 
-    if seq_batch_size != mask_batch_size:
-        if seq_batch_size % mask_batch_size != 0:
-            raise ValueError(
-                f"`seqs.size(0)` must be a multiple of `padding_mask.size(0)` ({mask_batch_size}), but is {seq_batch_size} instead."
-            )
-        bool_mask = bool_mask.repeat(seq_batch_size // mask_batch_size, 1)
-
-    return seqs.masked_fill(bool_mask.unsqueeze(2), 0.0)
+    return seqs.masked_fill(bool_mask, 0.0)
 
 
 
@@ -494,7 +486,7 @@ if __name__ == "__main__":
     print(f"mask1: {mask1}")
 
     ## 
-    seqs = torch.zeros((4, 6), device=device)
+    seqs = torch.zeros((4, 6, 2), device=device)
     seq_lens = torch.tensor([4, 2, 0, 5], device=device, dtype=torch.int32)
 
     mask2 = to_padding_mask(seqs, seq_lens)
@@ -513,6 +505,13 @@ if __name__ == "__main__":
 
     assert mask2 is not None
     print(f"mask2: {mask2},\n expected_mask: {expected_mask}")
+    bool_mask = mask2.isinf()
+    print(f"bool_mask: {bool_mask}, its shape: {bool_mask.shape}")
+    bool_mask = bool_mask.unsqueeze(2)
+    print(f"bool_mask: {bool_mask}, its shape: {bool_mask.shape}")
+    #output = seqs.masked_fill(bool_mask, 0.0)
+    output = apply_padding_mask(seqs, mask2)
+    print(f"seqs apply padding mask: {output} ")
     #assert_equal(mask2, expected_mask)
     seqs = torch.zeros((4, 6), device=device)
 

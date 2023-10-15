@@ -13,16 +13,16 @@ from torch import Tensor
 from torch.nn import Dropout, Module
 from torch.nn.parameter import Parameter
 
-from fairseq2.nn.normalization import LayerNorm
-from fairseq2.nn.transformer.ffn import FeedForwardNetwork
-from fairseq2.nn.transformer.layer_norm import (
+from foundnet.nn.transformer.normalization import LayerNorm
+from foundnet.nn.transformer.ffn import FeedForwardNetwork
+from foundnet.nn.transformer.layer_norm import (
     LayerNormFactory,
     create_default_layer_norm,
 )
-from fairseq2.nn.transformer.multihead_attention import MultiheadAttention
-from fairseq2.nn.transformer.norm_order import TransformerNormOrder
-from fairseq2.nn.utils.module import check_model_dim
-from fairseq2.utils.typing import DataType, Device, finaloverride
+from foundnet.nn.transformer.multihead_attention import MultiheadAttention
+from foundnet.nn.transformer.norm_order import TransformerNormOrder
+from foundnet.utils.module import check_model_dim
+from foundnet.utils.typing import DataType, Device, finaloverride
 
 
 class TransformerEncoderLayer(Module, ABC):
@@ -187,9 +187,9 @@ class StandardTransformerEncoderLayer(TransformerEncoderLayer):
     ) -> Tuple[Tensor, Optional[Tensor]]:
         seqs = self._forward_self_attn(seqs, padding_mask, self_attn_mask)
 
-        seqs = self._forward_ffn(seqs)
+        seqs, layer_result = self._forward_ffn(seqs)
 
-        return seqs, padding_mask
+        return seqs, layer_result, padding_mask
 
     def _forward_self_attn(
         self,
@@ -232,6 +232,8 @@ class StandardTransformerEncoderLayer(TransformerEncoderLayer):
 
         seqs = self.ffn(seqs)
 
+        layer_result = seqs
+        
         if self.ffn_dropout is not None:
             seqs = self.ffn_dropout(seqs)
 
@@ -243,7 +245,7 @@ class StandardTransformerEncoderLayer(TransformerEncoderLayer):
         if self.norm_order == TransformerNormOrder.POST:
             seqs = self.ffn_layer_norm(seqs)
 
-        return seqs
+        return seqs, layer_result
 
     def extra_repr(self) -> str:
         """:meta private:"""

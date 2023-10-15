@@ -153,15 +153,19 @@ class StandardTransformerEncoder(TransformerEncoder):
         seqs: Tensor,
         padding_mask: Optional[Tensor],
         *,
+        layer: str = None, # for example: layer="[7,12]"
         layer_output_hook: Optional[EncoderLayerOutputHook] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         if layer_output_hook is not None and self.layers.drop_p > 0.0:
             raise ValueError("`layer_hook` must be `None` when LayerDrop is enabled.")
 
         num_layers = len(self.layers)
-
+        layer = eval(layer) # str->list
+        layer_results = []
         for layer_idx, layer in enumerate(self.layers.drop_iter()):
-            seqs, padding_mask = layer(seqs, padding_mask)
+            seqs,layer_result, padding_mask = layer(seqs, padding_mask)
+            if layer_idx in layer:
+                layer_results.append(layer_result)
 
             if layer_output_hook is not None:
                 if not layer_output_hook(layer_idx, seqs, padding_mask, num_layers):
@@ -170,7 +174,7 @@ class StandardTransformerEncoder(TransformerEncoder):
         if self.layer_norm is not None:
             seqs = self.layer_norm(seqs)
 
-        return seqs, padding_mask
+        return seqs,layer_results, padding_mask
 
     def extra_repr(self) -> str:
         """:meta private:"""

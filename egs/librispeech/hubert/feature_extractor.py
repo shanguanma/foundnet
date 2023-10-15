@@ -1,11 +1,25 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
+from typing import List, Optional, Sequence, Tuple, final
+
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn import GELU, Conv1d, Dropout, GroupNorm, Module, Sequential
-from typing import List, Optional, Sequence, Tuple, final
 from torch.nn.functional import group_norm, layer_norm
 
+from foundnet.models.feature_extractor import SequenceFeatureExtractor
+from foundnet.nn.transformer.normalization import LayerNorm
+from foundnet.utils.grad import scale_grad
+from foundnet.utils.typing import DataType, Device, finaloverride, override
 
-class ConvFeatureExtractorModel(nn.Module):
+
+@final
+class Wav2Vec2FeatureExtractor(SequenceFeatureExtractor):
     """Extracts features from raw audio waveforms and embeds them in a latent
     space as described in Section 2 of
     :cite:t:`https://doi.org/10.48550/arxiv.2006.11477`."""
@@ -18,12 +32,12 @@ class ConvFeatureExtractorModel(nn.Module):
         self,
         layer_descs: Sequence[Tuple[int, int, int]],
         bias: bool,
-        device: None,
-        dtype: None,
         *,
         dropout_p: float = 0.0,
         layer_norm: bool = False,
-        grad_scale: float = 1.0,
+        grad_scale: float = 0.1,  # hubert default setting
+        device: Optional[Device] = None,
+        dtype: Optional[DataType] = None,
     ) -> None:
         """
         :param layer_descs:
@@ -77,7 +91,7 @@ class ConvFeatureExtractorModel(nn.Module):
                 group_norm_ = None
                 layer_norm_ = None
 
-            layer = ConvFeatureExtractionLayer(
+            layer = Wav2Vec2FeatureExtractionLayer(
                 input_dim,
                 output_dim,
                 kernel_size,
@@ -103,7 +117,7 @@ class ConvFeatureExtractorModel(nn.Module):
 
         self.grad_scale = grad_scale
 
-    
+    @finaloverride
     def forward(
         self, seqs: Tensor, seq_lens: Optional[Tensor]
     ) -> Tuple[Tensor, Optional[Tensor]]:
@@ -142,10 +156,16 @@ class ConvFeatureExtractorModel(nn.Module):
 
         return seq_lens.type_as(num_frames)
 
+    def extra_repr(self) -> str:
+        """:meta private:"""
+        s = super().extra_repr()
 
-class ConvFeatureExtractionLayer(nn.Module):
+        return f"{s}, grad_scale={self.grad_scale}"
+
+
+class Wav2Vec2FeatureExtractionLayer(Module):
     """Represents a feature extraction layer used in
-    :class:`Conv2FeatureExtractorModel`."""
+    :class:`Wav2Vec2FeatureExtractor`."""
 
     conv: Conv1d
     dropout: Optional[Dropout]
@@ -160,17 +180,16 @@ class ConvFeatureExtractionLayer(nn.Module):
         kernel_size: int,
         stride: int,
         bias: bool,
-        device: None,
-        dtype: None,
         *,
         dropout_p: float = 0.0,
         group_norm: Optional[GroupNorm] = None,
         layer_norm: Optional[LayerNorm] = None,
-    
+        device: Optional[Device] = None,
+        dtype: Optional[DataType] = None,
     ) -> None:
         super().__init__()
 
-        self.conv = nn.Conv1d(
+        self.conv = Wav2Vec2FeatureConv1d(
             input_dim,
             output_dim,
             kernel_size,
@@ -218,10 +237,93 @@ class ConvFeatureExtractionLayer(nn.Module):
 
         return seqs
 
+
+class Wav2Vec2FeatureConv1d(Conv1d):
+    """Represents the convolution used in
+    :class:`Wav2Vec2FeatureExtractionLayer`."""
+
+    @override
+    def reset_parameters(self) -> None:
+        if self.bias is not None:
+            # Call the base since we want to initialize bias as in `Conv1d`.
+            super().reset_parameters()
+
+        nn.init.kaiming_normal_(self.weight)
+
+
+# TODO: Move this to data pre-processing! It isn't a real feature extractor.
+class Wav2Vec2FbankFeatureExtractor(SequenceFeatureExtractor):
+    num_fbank_channels: int
+    stride: int
+    sample_every_k: int
+
+    def __init__(
+        self, num_fbank_channels: int, stride: int, *, sample_every_k: int = 1
+    ):
+        super().__init__(feature_dim=num_fbank_channels * stride)
+
+        self.num_fbank_channels = num_fbank_channels
+        self.stride = stride
+        self.sample_every_k = sample_every_k
+
+    @finaloverride
+    def forward(
+        self, seqs: Tensor, seq_lens: Optional[Tensor]
+    ) -> Tuple[Tensor, Optional[Tensor]]:
+        """See the base :meth:`SequenceFeatureExtractor.forward`.
+
+        :param seqs:
+            The input log-mel filterbanks. *Shape:* :math:`(N,S,C)`, where
+            :math:`N` is the batch size, :math:`S` is the number of frames, and
+            :math:`C` is the number of channels.
+        """
+        batch_size, num_frames, num_channels = seqs.shape
+
+        if (r := num_frames % self.stride) != 0:
+            num_frames -= r
+
+            seqs = seqs[:, :num_frames, :]
+
+            if seq_lens is not None:
+                seq_lens[seq_lens > num_frames] = num_frames
+
+        seqs = seqs.view(
+            batch_size, num_frames // self.stride, num_channels * self.stride
+        )
+
+        if self.sample_every_k > 1:
+            indices = torch.arange(0, batch_size, device=seqs.device)
+
+            seqs = seqs[indices % self.sample_every_k != 0]
+
+        if seq_lens is not None:
+            # Since we contracted the temporal dimension, we should re-compute
+            # the sequence lengths.
+            seq_lens = self._compute_seq_lens(seq_lens)
+
+        return seqs, seq_lens
+
+    def _compute_seq_lens(self, num_frames: Tensor) -> Tensor:
+        num_frames = num_frames // self.stride
+
+        if self.sample_every_k > 1:
+            num_frames //= self.sample_every_k + 1
+
+        return num_frames
+
+    def extra_repr(self) -> str:
+        """:meta private:"""
+        return (
+            f"num_fbank_channels={self.num_fbank_channels}, "
+            f"stride={self.stride}, "
+            f"sample_every_k={self.sample_every_k}"
+        )
+
+
 class Float32LayerNorm(LayerNorm):
     """Applies Layer Normalization in single-precision."""
 
-    
+    @override
     def forward(self, x: Tensor) -> Tensor:
         w, b = self.weight, self.bias
 
@@ -237,7 +339,7 @@ class Float32LayerNorm(LayerNorm):
 class Float32GroupNorm(GroupNorm):
     """Applies Group Normalization in single-precision."""
 
-    
+    @override(check_signature=False)
     def forward(self, x: Tensor) -> Tensor:
         w, b = self.weight, self.bias
 
